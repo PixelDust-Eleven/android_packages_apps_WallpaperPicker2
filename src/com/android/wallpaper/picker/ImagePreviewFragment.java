@@ -83,6 +83,7 @@ public class ImagePreviewFragment extends PreviewFragment {
     private final WallpaperSurfaceCallback mWallpaperSurfaceCallback =
             new WallpaperSurfaceCallback();
 
+    private boolean mFullResViewInitialized;
     private SubsamplingScaleImageView mFullResImageView;
     private Asset mWallpaperAsset;
     private Point mScreenSize;
@@ -266,7 +267,14 @@ public class ImagePreviewFragment extends PreviewFragment {
 
             mRawWallpaperSize = dimensions;
 
-            setUpExploreIntentAndLabel(ImagePreviewFragment.this::initFullResView);
+            setUpExploreIntentAndLabel(() -> {
+                synchronized (this) {
+                    /* Init if we finish after WallpaperSurfaceCallback */
+                    if (mFullResImageView != null && !mFullResViewInitialized) {
+                        initFullResView();
+                    }
+                }
+            });
         });
     }
 
@@ -275,6 +283,10 @@ public class ImagePreviewFragment extends PreviewFragment {
      * initializing a zoom-scroll observer and click listener.
      */
     private void initFullResView() {
+        synchronized (this) {
+            mFullResViewInitialized = true;
+        }
+
         // Minimum scale will only be respected under this scale type.
         mFullResImageView.setMinimumScaleType(SubsamplingScaleImageView.SCALE_TYPE_CUSTOM);
         // When we set a minimum scale bigger than the scale with which the full image is shown,
@@ -486,6 +498,13 @@ public class ImagePreviewFragment extends PreviewFragment {
                 mHost.setView(wallpaperPreviewContainer, wallpaperPreviewContainer.getWidth(),
                         wallpaperPreviewContainer.getHeight());
                 mWallpaperSurface.setChildSurfacePackage(mHost.getSurfacePackage());
+
+                synchronized (this) {
+                    /* Init if we finish after decodeRawDimensions */
+                    if (mRawWallpaperSize != null && !mFullResViewInitialized) {
+                        initFullResView();
+                    }
+                }
             }
         }
 
